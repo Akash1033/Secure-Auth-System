@@ -46,30 +46,25 @@ const changeCurrentUserPassword = asyncHandler(async (req, res) => {
     
     const { oldPassword, newPassword } = req.body;
 
-    // 1. Validate fields
     if (!oldPassword || !newPassword) {
         throw new ApiError(400, "Old password and new password are required");
     }
 
-    // 2. Get user
     const user = await User.findById(req.user?._id);
     if (!user) {
         throw new ApiError(404, "User not found");
     }
 
-    // 3. Check old password
     const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
     if (!isPasswordCorrect) {
         throw new ApiError(400, "Invalid old password");
     }
 
-    // 4. Prevent using same password again
     const isSamePassword = await user.isPasswordCorrect(newPassword);
     if (isSamePassword) {
         throw new ApiError(400, "New password cannot be the same as old password");
     }
 
-    // 5. Update password (hashing happens automatically)
     user.password = newPassword;
     await user.save({ validateBeforeSave: false });
 

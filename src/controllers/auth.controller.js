@@ -32,10 +32,6 @@ const registerUser = asyncHandler(async (req, res) => {
   }
   const { name, email, password } = value;
 
-  // if(!value || Object.keys(value).length === 0){
-  //    throw new ApiError(400,"Feilds are required to register")
-  // }  // i do not have need to write this line of code becuase joi already check for data is empty or not.
-
   const existedUser = await User.findOne({
     $or: [{ email }, { name }],
   });
@@ -87,47 +83,6 @@ const registerUser = asyncHandler(async (req, res) => {
     );
 });
 
-const verifyOTP = asyncHandler(async (req, res) => {
-  const { email, otp } = req.body;
-
-  // 1. Validate input
-  if (!email || !otp) {
-    throw new ApiError(400, "Email and OTP are required");
-  }
-
-  // 2. Find user
-  const user = await User.findOne({ email });
-
-  if (!user) {
-    throw new ApiError(404, "User not found");
-  }
-
-  // 3. Already verified?
-  if (user.isVerified) {
-    throw new ApiError(400, "User already verified");
-  }
-
-  // 4. Check OTP
-  if (user.otp !== otp) {
-    throw new ApiError(400, "Incorrect OTP");
-  }
-
-  // 5. Check OTP expiry
-  if (user.otpExpiry < Date.now()) {
-    throw new ApiError(400, "OTP expired. Please request a new one.");
-  }
-
-  // 6. OTP correct → verify user
-  user.isVerified = true;
-  user.otp = null;
-  user.otpExpiry = null;
-
-  await user.save();
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, {}, "Email verification successful"));
-});
 
 const resendOTP = asyncHandler(async (req, res) => {
   const { email } = req.body;
@@ -146,7 +101,6 @@ const resendOTP = asyncHandler(async (req, res) => {
     throw new ApiError(400, "User is already verified");
   }
 
-  // Generate new OTP
   const newOTP = generateOTP();
   const otpExpiry = Date.now() + 5 * 60 * 1000;
 
@@ -155,7 +109,6 @@ const resendOTP = asyncHandler(async (req, res) => {
 
   await user.save({ validateBeforeSave: false });
 
-  // Send OTP Email
   await sendEmail({
     to: email,
     subject: "Your New OTP Code",
@@ -168,6 +121,46 @@ const resendOTP = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, {}, "New OTP sent to email"));
 });
+
+
+
+const verifyOTP = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    throw new ApiError(400, "Email and OTP are required");
+  }
+
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  if (user.isVerified) {
+    throw new ApiError(400, "User already verified");
+  }
+
+  if (user.otp !== otp) {
+    throw new ApiError(400, "Incorrect OTP");
+  }
+
+  if (user.otpExpiry < Date.now()) {
+    throw new ApiError(400, "OTP expired. Please request a new one.");
+  }
+
+  user.isVerified = true;
+  user.otp = null;
+  user.otpExpiry = null;
+
+  await user.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Email verification successful"));
+});
+
+
 
 
 const loginUser = asyncHandler(async (req, res) => {
@@ -307,3 +300,4 @@ const refreshAccessToken = asyncHandler (async(req,res) => {
 
 
 export { registerUser, verifyOTP,resendOTP, loginUser, logoutUser ,refreshAccessToken };
+
